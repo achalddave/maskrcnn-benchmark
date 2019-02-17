@@ -8,7 +8,10 @@ Basic training script for PyTorch
 from maskrcnn_benchmark.utils.env import setup_environment  # noqa F401 isort:skip
 
 import argparse
+import logging
 import os
+
+from script_utils.common import common_setup
 
 import torch
 from maskrcnn_benchmark.config import cfg
@@ -24,6 +27,16 @@ from maskrcnn_benchmark.utils.comm import synchronize, get_rank
 from maskrcnn_benchmark.utils.imports import import_file
 from maskrcnn_benchmark.utils.logger import setup_logger
 from maskrcnn_benchmark.utils.miscellaneous import mkdir
+
+
+def _safe_int(x):
+    if isinstance(x, float):
+        assert x.is_integer(), ('%s is not an integer.' % x)
+        return int(x)
+    elif isinstance(x, int):
+        return int(x)
+    else:
+        raise ValueError('Unknown type: %s (%s)' % (x, type(x)))
 
 
 def train(cfg, local_rank, distributed):
@@ -117,6 +130,11 @@ def main():
         help="path to config file",
         type=str,
     )
+    parser.add_argument(
+        '--reduce-batch',
+        type=int,
+        help=('Divide IMS_PER_BATCH by this amount. This appropriately '
+              'updates the learning rate, number of iterations, and so on.'))
     parser.add_argument("--local_rank", type=int, default=0)
     parser.add_argument(
         "--skip-test",
@@ -144,12 +162,51 @@ def main():
         synchronize()
 
     cfg.merge_from_file(args.config_file)
-    cfg.merge_from_list(args.opts)
-    cfg.freeze()
+
+    # We want to get the OUTPUT_DIR from the args immediately, if it exists, so
+    # we can setup logging. We will merge the rest of the config in a few
+    # lines.
+    try:
+        dir_index = args.opts[0::2].index('OUTPUT_DIR')
+        cfg.OUTPUT_DIR = args.opts[dir_index * 2 + 1]
+    except ValueError:
+        pass
 
     output_dir = cfg.OUTPUT_DIR
     if output_dir:
         mkdir(output_dir)
+    common_setup(__file__, output_dir, args)
+
+    # Automatically handle config changes as required by
+    # https://github.com/facebookresearch/maskrcnn-benchmark/tree/327bc29bcc4924e35bd61c59877d5a1d25bb75af#single-gpu-training
+    if args.reduce_batch:
+        assert num_gpus in (1, 2, 4)
+        scale = args.reduce_batch
+        logging.info('Updating config for # GPUs = %s', num_gpus)
+
+        def update_config(key, new_value):
+            key_list = key.split('.')
+            d = cfg
+            for subkey in key_list[:-1]:
+                d = cfg[subkey]
+            subkey = key_list[-1]
+            old_value = d[subkey]
+            logging.info('Updating cfg.%s: %s -> %s', key, old_value,
+                         new_value)
+            d[subkey] = new_value
+        update_config('SOLVER.IMS_PER_BATCH',
+                      _safe_int(cfg.SOLVER.IMS_PER_BATCH / scale))
+        update_config('SOLVER.BASE_LR',
+                      cfg.SOLVER.BASE_LR / scale)
+        update_config('SOLVER.MAX_ITER',
+                      _safe_int(cfg.SOLVER.MAX_ITER * scale))
+        update_config('SOLVER.STEPS',
+                      tuple(_safe_int(x * scale) for x in cfg.SOLVER.STEPS))
+
+    logging.info('Updating config from arguments')
+    cfg.merge_from_list(args.opts)
+    cfg.freeze()
+
 
     logger = setup_logger("maskrcnn_benchmark", output_dir, get_rank())
     logger.info("Using {} GPUs".format(num_gpus))
