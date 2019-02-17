@@ -20,7 +20,7 @@ elif [[ "$1" != "activate" ]] && [[ "$1" != "deactivate" ]] ; then
     return
 fi
 
-_PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+_PROJECT_DIR="$( cd "$( dirname "$0" )" >/dev/null && pwd )"
 if [[ "$1" == "activate" ]] ; then
     if [[ -n "${PYTHONPATH}" ]] ; then
         export PYTHONPATH="${_PROJECT_DIR}:${PYTHONPATH}"
