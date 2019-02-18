@@ -10,6 +10,7 @@ from maskrcnn_benchmark.utils.env import setup_environment  # noqa F401 isort:sk
 import argparse
 import logging
 import os
+from pathlib import Path
 
 from script_utils.common import common_setup
 
@@ -207,6 +208,9 @@ def main():
     cfg.merge_from_list(args.opts)
     cfg.freeze()
 
+    logging.info('Config: %s', cfg)
+    with open(Path(output_dir) / 'config.yaml', 'wb') as f:
+        f.write(cfg.dump())
 
     logger = setup_logger("maskrcnn_benchmark", output_dir, get_rank())
     logger.info("Using {} GPUs".format(num_gpus))
