@@ -71,6 +71,12 @@ def main():
         '--recursive',
         help='Whether to search recursively in --image-dir for images.',
         action='store_true')
+    parser.add_argument(
+        "opts",
+        help="Modify config options using the command-line",
+        default=None,
+        nargs=argparse.REMAINDER)
+
 
     args = parser.parse_args()
 
@@ -79,6 +85,8 @@ def main():
 
     # update the config options with the config file
     cfg.merge_from_file(args.config_file)
+    cfg.merge_from_list(args.opts)
+    cfg.freeze()
 
     # Avoid lots of logging when loading model.
     logging.root.setLevel(logging.WARN)
