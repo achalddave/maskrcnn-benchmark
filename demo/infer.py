@@ -102,8 +102,8 @@ def main():
             box = np.zeros(5)
             box[:4] = predictions.bbox[i]
             box[4] = predictions.get_field('scores')[i]
-            output['boxes'][i].append(box)
-            output['segmentations'][i].append(rle_masks[i])
+            output['boxes'][label].append(box)
+            output['segmentations'][label].append(rle_masks[i])
         with open(args.output_dir / (image_path.stem + '.pickle'), 'wb') as f:
             pickle.dump(output, f)
 
