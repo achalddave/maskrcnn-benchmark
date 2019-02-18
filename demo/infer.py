@@ -90,9 +90,6 @@ def main():
         logging.info('Loading model from: %s', args.model_path)
         coco_demo.load_model(args.model_path)
     logging.root.setLevel(logging.INFO)
-    paths_catalog = import_file(
-        "maskrcnn_benchmark.config.paths_catalog", cfg.PATHS_CATALOG, True
-    )
 
     if args.image_dir:
         logging.info('Collecting images')
