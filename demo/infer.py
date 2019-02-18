@@ -6,12 +6,20 @@ import cv2
 import numpy as np
 import pickle
 from script_utils.common import common_setup
+from tqdm import tqdm
 
 from maskrcnn_benchmark.config import cfg
 from maskrcnn_benchmark.data.build import build_dataset
 from maskrcnn_benchmark.modeling.roi_heads.mask_head.inference import Masker
 from maskrcnn_benchmark.utils.imports import import_file
 from predictor import COCODemo
+
+IMG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm']
+
+
+def is_image(path):
+    return path.is_file and any(path.suffix == extension
+                                for extension in IMG_EXTENSIONS)
 
 
 def convert_segmentation_coco_format(prediction):
@@ -39,6 +47,10 @@ def main():
         help='optional config file')
 
     parser.add_argument(
+        '--image-dir',
+        type=Path,
+        help='directory to load images for demo')
+    parser.add_argument(
         '--images', nargs='+',
         type=Path,
         help=('images to infer. Must not use with --image_dirs. If the model '
@@ -51,6 +63,10 @@ def main():
     parser.add_argument(
         '--dataset',
         default='coco_2017_train')
+    parser.add_argument(
+        '--recursive',
+        help='Whether to search recursively in --image-dir for images.',
+        action='store_true')
 
     args = parser.parse_args()
 
@@ -65,14 +81,30 @@ def main():
     coco_demo = COCODemo(
         cfg,
         min_image_size=800,
-        confidence_threshold=0.7,
-    )
+        confidence_threshold=0.7)
     logging.root.setLevel(logging.INFO)
     paths_catalog = import_file(
         "maskrcnn_benchmark.config.paths_catalog", cfg.PATHS_CATALOG, True
     )
 
-    for image_path in args.images:
+    if args.image_dir:
+        logging.info('Collecting images')
+        if args.recursive:
+            images = [x for x in args.image_dir.rglob('*') if is_image(x)]
+        else:
+            images = [x for x in args.image_dir.iterdir() if is_image(x)]
+        outputs = [(args.output_dir / x.relative_to(
+            args.image_dir)).with_suffix('.pickle') for x in images]
+    else:
+        images = args.images
+        outputs = [(args.output_dir / (x.stem + '.pickle')) for x in images]
+
+    if not images:
+        raise ValueError('No images found!')
+    logging.info('Inferring on %s images', len(images))
+    for image_path, output_path in zip(tqdm(images), outputs):
+        if output_path.exists():
+            continue
         image = cv2.imread(str(image_path))
         predictions = coco_demo.compute_prediction(image)
 
@@ -98,13 +130,15 @@ def main():
             'keypoints': [[] for _ in coco_demo.CATEGORIES]
         }
         rle_masks = convert_segmentation_coco_format(predictions)
+
         for i, label in enumerate(predictions.get_field('labels')):
             box = np.zeros(5)
             box[:4] = predictions.bbox[i]
             box[4] = predictions.get_field('scores')[i]
             output['boxes'][label].append(box)
             output['segmentations'][label].append(rle_masks[i])
-        with open(args.output_dir / (image_path.stem + '.pickle'), 'wb') as f:
+        output_path.parent.mkdir(exist_ok=True, parents=True)
+        with open(output_path, 'wb') as f:
             pickle.dump(output, f)
 
         top_predictions = coco_demo.select_top_predictions(predictions)
