@@ -130,6 +130,19 @@ class COCODemo(object):
         self.show_mask_heatmaps = show_mask_heatmaps
         self.masks_per_dim = masks_per_dim
 
+    def load_model(self, path):
+        logging.info('Loading model from: %s', path)
+        checkpointer = DetectronCheckpointer(
+            self.cfg, self.model, save_dir=self.cfg.OUTPUT_DIR)
+        checkpoint = checkpointer._load_file(path)
+        checkpointer._load_model(checkpoint)
+        if "optimizer" in checkpoint and checkpointer.optimizer:
+            checkpointer.logger.info("Loading optimizer from {}".format(path))
+            checkpointer.optimizer.load_state_dict(checkpoint.pop("optimizer"))
+        if "scheduler" in checkpoint and checkpointer.scheduler:
+            checkpointer.logger.info("Loading scheduler from {}".format(path))
+            checkpointer.scheduler.load_state_dict(checkpoint.pop("scheduler"))
+
     def build_transform(self):
         """
         Creates a basic transformation that was used to train the models

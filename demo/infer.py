@@ -45,6 +45,10 @@ def main():
         dest='config_file',
         required=True,
         help='optional config file')
+    parser.add_argument(
+        '--model-path',
+        help=('Path to model pickle file. If not specified, the latest '
+              'checkpoint, if it exists, or cfg.MODEL.WEIGHT is loaded.'))
 
     parser.add_argument(
         '--image-dir',
@@ -82,6 +86,9 @@ def main():
         cfg,
         min_image_size=800,
         confidence_threshold=0.7)
+    if args.model_path:
+        logging.info('Loading model from: %s', args.model_path)
+        coco_demo.load_model(args.model_path)
     logging.root.setLevel(logging.INFO)
     paths_catalog = import_file(
         "maskrcnn_benchmark.config.paths_catalog", cfg.PATHS_CATALOG, True
