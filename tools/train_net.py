@@ -183,6 +183,7 @@ def main():
             __file__ + '-worker%s' % get_rank(),
             output_dir,
             args,
+            log_console_level=logging.CRITICAL,
             save_git_state=False)
 
     # Automatically handle config changes as required by
