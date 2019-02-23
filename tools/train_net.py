@@ -176,7 +176,16 @@ def main():
     output_dir = cfg.OUTPUT_DIR
     if output_dir:
         mkdir(output_dir)
-    common_setup(__file__, output_dir, args)
+
+    if get_rank() == 0:
+        common_setup(__file__, output_dir, args)
+    else:
+        common_setup(
+            __file__ + '-worker%s' % get_rank(),
+            output_dir,
+            args,
+            save_git_state=False)
+
 
     # Automatically handle config changes as required by
     # https://github.com/facebookresearch/maskrcnn-benchmark/tree/327bc29bcc4924e35bd61c59877d5a1d25bb75af#single-gpu-training
