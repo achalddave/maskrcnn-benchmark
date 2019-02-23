@@ -26,7 +26,6 @@ from maskrcnn_benchmark.utils.checkpoint import DetectronCheckpointer
 from maskrcnn_benchmark.utils.collect_env import collect_env_info
 from maskrcnn_benchmark.utils.comm import synchronize, get_rank
 from maskrcnn_benchmark.utils.imports import import_file
-from maskrcnn_benchmark.utils.logger import setup_logger
 from maskrcnn_benchmark.utils.miscellaneous import mkdir
 
 
@@ -186,7 +185,6 @@ def main():
             args,
             save_git_state=False)
 
-
     # Automatically handle config changes as required by
     # https://github.com/facebookresearch/maskrcnn-benchmark/tree/327bc29bcc4924e35bd61c59877d5a1d25bb75af#single-gpu-training
     if args.reduce_batch:
@@ -221,7 +219,7 @@ def main():
     with open(Path(output_dir) / 'config.yaml', 'wb') as f:
         f.write(cfg.dump())
 
-    logger = setup_logger("maskrcnn_benchmark", output_dir, get_rank())
+    logger = logging.getLogger("maskrcnn_benchmark")
     logger.info("Using {} GPUs".format(num_gpus))
     logger.info(args)
 
