@@ -7,8 +7,6 @@ import torch
 from torch.distributed import deprecated as dist
 
 from maskrcnn_benchmark.utils.comm import get_world_size
-from maskrcnn_benchmark.utils.metric_logger import MetricLogger
-from maskrcnn_benchmark.utils.metric_logger import TensorboardLogger
 
 
 def reduce_loss_dict(loss_dict):
@@ -45,18 +43,10 @@ def do_train(
     device,
     checkpoint_period,
     arguments,
-    tb_log_dir,
-    tb_exp_name,
-    use_tensorboard=False
+    meters
 ):
     logger = logging.getLogger("maskrcnn_benchmark.trainer")
     logger.info("Start training")
-
-    meters = TensorboardLogger(log_dir=tb_log_dir,
-                               exp_name=tb_exp_name,
-                               start_iter=arguments['iteration'],
-                               delimiter="  ") \
-        if use_tensorboard else MetricLogger(delimiter="  ")
 
     max_iter = len(data_loader)
     start_iter = arguments["iteration"]
