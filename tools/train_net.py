@@ -177,9 +177,9 @@ def main():
         mkdir(output_dir)
 
     if get_rank() == 0:
-        common_setup(__file__, output_dir, args)
+        file_logger = common_setup(__file__, output_dir, args)
     else:
-        common_setup(
+        file_logger = common_setup(
             __file__ + '-worker%s' % get_rank(),
             output_dir,
             args,
@@ -229,8 +229,11 @@ def main():
     logger.info("Loaded configuration file {}".format(args.config_file))
     with open(args.config_file, "r") as cf:
         config_str = "\n" + cf.read()
-        logger.info(config_str)
-    logger.info("Running with config:\n{}".format(cfg))
+        file_logger.info(config_str)
+    file_logger.info("Running with config:\n{}".format(cfg))
+    if get_rank() == 0:
+        with open(Path(output_dir) / 'config.yaml', 'w') as f:
+            f.write(cfg.dump())
 
     model = train(cfg, args.local_rank, args.distributed)
 
