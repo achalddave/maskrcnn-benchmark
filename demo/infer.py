@@ -41,8 +41,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='Demonstrate mask-rcnn results')
     parser.add_argument(
-        '--cfg',
-        dest='config_file',
+        '--config-file',
         required=True,
         help='optional config file')
     parser.add_argument(
