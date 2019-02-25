@@ -46,6 +46,7 @@ def main():
         help='optional config file')
     parser.add_argument(
         '--model-path',
+        type=Path,
         help=('Path to model pickle file. If not specified, the latest '
               'checkpoint, if it exists, or cfg.MODEL.WEIGHT is loaded.'))
 
@@ -88,15 +89,11 @@ def main():
     cfg.freeze()
 
     # Avoid lots of logging when loading model.
-    logging.root.setLevel(logging.WARN)
     coco_demo = COCODemo(
         cfg,
+        model_path=str(args.model_path.resolve()),
         min_image_size=800,
         confidence_threshold=0.7)
-    if args.model_path:
-        logging.info('Loading model from: %s', args.model_path)
-        coco_demo.load_model(args.model_path)
-    logging.root.setLevel(logging.INFO)
 
     if args.image_dir:
         logging.info('Collecting images')

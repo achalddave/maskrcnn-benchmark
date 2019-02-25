@@ -106,6 +106,7 @@ class COCODemo(object):
         show_mask_heatmaps=False,
         masks_per_dim=2,
         min_image_size=224,
+        model_path=None
     ):
         self.cfg = cfg.clone()
         self.model = build_detection_model(cfg)
@@ -115,8 +116,21 @@ class COCODemo(object):
         self.min_image_size = min_image_size
 
         save_dir = cfg.OUTPUT_DIR
-        checkpointer = DetectronCheckpointer(cfg, self.model, save_dir=save_dir)
-        _ = checkpointer.load(cfg.MODEL.WEIGHT)
+        checkpointer = DetectronCheckpointer(
+            cfg, self.model, save_dir=save_dir)
+        if model_path:
+            logging.info('Loading model from model-path: %s', model_path)
+            load_path = model_path
+        else:
+            if checkpointer.has_checkpoint():
+                load_path = checkpointer.get_checkpoint_file()
+                logging.info('Loading model from latest checkpoint: %s',
+                             load_path)
+            else:
+                load_path = cfg.MODEL.WEIGHT
+                logging.info('Loading model from cfg.MODEL.WEIGHT: %s',
+                             load_path)
+        checkpointer.load(load_path, allow_override=False)
 
         self.transforms = self.build_transform()
 
@@ -130,19 +144,6 @@ class COCODemo(object):
         self.confidence_threshold = confidence_threshold
         self.show_mask_heatmaps = show_mask_heatmaps
         self.masks_per_dim = masks_per_dim
-
-    def load_model(self, path):
-        logging.info('Loading model from: %s', path)
-        checkpointer = DetectronCheckpointer(
-            self.cfg, self.model, save_dir=self.cfg.OUTPUT_DIR)
-        checkpoint = checkpointer._load_file(path)
-        checkpointer._load_model(checkpoint)
-        if "optimizer" in checkpoint and checkpointer.optimizer:
-            checkpointer.logger.info("Loading optimizer from {}".format(path))
-            checkpointer.optimizer.load_state_dict(checkpoint.pop("optimizer"))
-        if "scheduler" in checkpoint and checkpointer.scheduler:
-            checkpointer.logger.info("Loading scheduler from {}".format(path))
-            checkpointer.scheduler.load_state_dict(checkpoint.pop("scheduler"))
 
     def build_transform(self):
         """
