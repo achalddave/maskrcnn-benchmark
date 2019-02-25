@@ -26,6 +26,10 @@ def main():
         metavar="FILE",
         help="path to config file",
     )
+    parser.add_argument(
+        '--model-path',
+        help=('Path to model pickle file. If not specified, the latest '
+              'checkpoint, if it exists, or cfg.MODEL.WEIGHT is loaded.'))
     parser.add_argument("--local_rank", type=int, default=0)
     parser.add_argument(
         "opts",
@@ -63,7 +67,13 @@ def main():
 
     output_dir = cfg.OUTPUT_DIR
     checkpointer = DetectronCheckpointer(cfg, model, save_dir=output_dir)
-    _ = checkpointer.load(cfg.MODEL.WEIGHT)
+    if args.model_path:
+        logging.info('Loading model from --model-path: %s', args.model_path)
+        _ = checkpointer.load(args.model_path)
+    else:
+        logging.info('Loading model from cfg.MODEL.WEIGHT: %s',
+                     cfg.MODEL.WEIGHT)
+        _ = checkpointer.load(cfg.MODEL.WEIGHT)
 
     iou_types = ("bbox",)
     if cfg.MODEL.MASK_ON:
