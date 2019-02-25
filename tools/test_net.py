@@ -69,11 +69,17 @@ def main():
     checkpointer = DetectronCheckpointer(cfg, model, save_dir=output_dir)
     if args.model_path:
         logging.info('Loading model from --model-path: %s', args.model_path)
-        _ = checkpointer.load(args.model_path)
+        load_path = args.model_path
     else:
-        logging.info('Loading model from cfg.MODEL.WEIGHT: %s',
-                     cfg.MODEL.WEIGHT)
-        _ = checkpointer.load(cfg.MODEL.WEIGHT)
+        if checkpointer.has_checkpoint():
+            load_path = checkpointer.get_checkpoint_file()
+            logging.info('Loading model from latest checkpoint: %s',
+                        load_path)
+        else:
+            load_path = cfg.MODEL.WEIGHT
+            logging.info('Loading model from cfg.MODEL.WEIGHT: %s',
+                         load_path)
+    _ = checkpointer.load(load_path, allow_override=False)
 
     iou_types = ("bbox",)
     if cfg.MODEL.MASK_ON:
