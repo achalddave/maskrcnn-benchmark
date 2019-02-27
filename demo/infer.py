@@ -9,10 +9,7 @@ from script_utils.common import common_setup
 from tqdm import tqdm
 
 from maskrcnn_benchmark.config import cfg
-from maskrcnn_benchmark.data.build import build_dataset
-from maskrcnn_benchmark.modeling.roi_heads.mask_head.inference import Masker
-from maskrcnn_benchmark.utils.imports import import_file
-from predictor import COCODemo
+from maskrcnn_benchmark.demo.predictor import COCODemo
 
 IMG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm']
 
@@ -126,9 +123,9 @@ def main():
         # - 'keypoints': List of length num_classes+1, each containing
         #   keypoints for each box. (Unused right now)
         #
-        # This is for "legacy" reasons - I (@achald) used to save the
-        # cls_boxes, cls_segms, and cls_keyps variables from the Caffe2
-        # detectron in a pickle file, and wrote a number of scripts that
+        # This specific format is for "legacy" reasons - I (@achald) used to
+        # save the cls_boxes, cls_segms, and cls_keyps variables from the
+        # Caffe2 detectron in a pickle file, and wrote a number of scripts that
         # operate on that format, so I save in the same format here.
         # 1. <https://github.com/facebookresearch/Detectron/blob/7c0ad88fc0d33cf0f698a3554ee842262d27babf/tools/infer.py#L146>  # noqa: E501
         # 2. <https://bitbucket.org/devalab/detectron-track-everything/src/7cf00d20900cc03eb485cd8924403bc4c18ccbf8/tools/infer_simple.py#lines-432>  # noqa: E501
