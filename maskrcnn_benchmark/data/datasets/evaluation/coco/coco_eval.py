@@ -108,7 +108,7 @@ def prepare_for_coco_segmentation(predictions, dataset):
     masker = Masker(threshold=0.5, padding=1)
     # assert isinstance(dataset, COCODataset)
     coco_results = []
-    for image_id, prediction in tqdm(enumerate(predictions)):
+    for image_id, prediction in enumerate(tqdm(predictions)):
         original_id = dataset.id_to_img_map[image_id]
         if len(prediction) == 0:
             continue
