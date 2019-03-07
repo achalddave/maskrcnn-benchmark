@@ -43,6 +43,24 @@ def _safe_int(x):
         raise ValueError('Unknown type: %s (%s)' % (x, type(x)))
 
 
+def merge_keys(cfg, opts_list, keys):
+    """Update specific keys in cfg if they are in opts_list.
+
+    Additionally removes updates corresponding to the keys from opts_list."""
+    selected_updates = []
+    for key in keys:
+        try:
+            key_index = opts_list[0::2].index(key) * 2
+        except ValueError:  # key not found
+            continue
+        value = opts_list[key_index + 1]
+        del opts_list[key_index:key_index + 2]
+        logging.info('Updating %s to %s in merge_keys' % (key, value))
+        selected_updates.extend([key, value])
+    if selected_updates:
+        cfg.merge_from_list(selected_updates)
+
+
 def train(cfg, local_rank, distributed, use_tensorboard=False):
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
@@ -188,11 +206,7 @@ def main():
     # We want to get the OUTPUT_DIR from the args immediately, if it exists, so
     # we can setup logging. We will merge the rest of the config in a few
     # lines.
-    try:
-        dir_index = args.opts[0::2].index('OUTPUT_DIR')
-        cfg.OUTPUT_DIR = args.opts[dir_index * 2 + 1]
-    except ValueError:
-        pass
+    merge_keys(cfg, args.opts, ['OUTPUT_DIR'])
 
     output_dir = cfg.OUTPUT_DIR
     if output_dir:
@@ -211,6 +225,11 @@ def main():
     # Automatically handle config changes as required by
     # https://github.com/facebookresearch/maskrcnn-benchmark/tree/327bc29bcc4924e35bd61c59877d5a1d25bb75af#single-gpu-training
     if args.reduce_batch:
+        # Update using --opts first, then override.
+        merge_keys(cfg, args.opts, [
+            'SOLVER.IMS_PER_BATCH', 'SOLVER.BASE_LR', 'SOLVER.MAX_ITER',
+            'SOLVER.STEPS'
+        ])
         assert num_gpus in (1, 2, 4)
         scale = args.reduce_batch
         logging.info('Updating config for # GPUs = %s', num_gpus)
