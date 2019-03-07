@@ -33,6 +33,9 @@ _C.MODEL.CLS_AGNOSTIC_BBOX_REG = False
 # the path in paths_catalog. Else, it will use it as the specified absolute
 # path
 _C.MODEL.WEIGHT = ""
+# If true, don't load optimizer, scheduler and iteration from checkpoint.
+# See also: https://github.com/facebookresearch/maskrcnn-benchmark/issues/372
+_C.MODEL.LOAD_ONLY_WEIGHTS = False
 
 
 # -----------------------------------------------------------------------------
