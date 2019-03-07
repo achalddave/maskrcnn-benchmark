@@ -1,12 +1,15 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 import datetime
 import logging
+import random
 import time
 
+import cv2
+import numpy as np
 import torch
 import torch.distributed as dist
 
-from maskrcnn_benchmark.utils.comm import get_world_size
+from maskrcnn_benchmark.utils.comm import get_world_size, is_main_process
 
 
 def reduce_loss_dict(loss_dict):
@@ -32,6 +35,22 @@ def reduce_loss_dict(loss_dict):
             all_losses /= world_size
         reduced_losses = {k: v for k, v in zip(loss_names, all_losses)}
     return reduced_losses
+
+
+def get_vis_image(image_list, index):
+    h, w = image_list.image_sizes[index]
+    image = image_list.tensors[index, :h, :w]
+    image = np.array(image.cpu()).transpose((1, 2, 0)).copy()
+    return (image - image.min()) / (image.max() - image.min())
+
+
+def overlay_box(image, box, color=(0, 1, 0)):
+    box = box.to(torch.int64)
+    top_left, bottom_right = box[:2].tolist(), box[2:].tolist()
+    # Draw a green rectangle
+    visualized = cv2.rectangle(image, tuple(top_left), tuple(bottom_right),
+                               (0, 1, 0), 3)
+    return visualized
 
 
 def do_train(
@@ -108,6 +127,15 @@ def do_train(
             checkpointer.save("model_{:07d}".format(iteration), **arguments)
         if iteration == max_iter:
             checkpointer.save("model_final", **arguments)
+
+        if ((iteration == 1 or iteration % 1000 == 0) and is_main_process()
+                and hasattr(meters, 'writer')):
+            index = random.randrange(len(targets))
+            image = get_vis_image(images, index)
+            box = targets[index].convert('xyxy').bbox[0]
+            meters.writer.add_image('groundtruth',
+                                    overlay_box(image, box.cpu()),
+                                    meters.iteration)
 
     total_training_time = time.time() - start_training_time
     total_time_str = str(datetime.timedelta(seconds=total_training_time))
