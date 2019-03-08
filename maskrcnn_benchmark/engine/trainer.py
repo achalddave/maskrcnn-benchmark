@@ -100,6 +100,7 @@ def do_train(
             loss=losses_reduced,
             time=batch_time,
             data=data_time,
+            lr=optimizer.param_groups[0]["lr"],
             **loss_dict_reduced)
 
         eta_seconds = meters.time.global_avg * (max_iter - iteration)
