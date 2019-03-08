@@ -228,7 +228,7 @@ def main():
         # Update using --opts first, then override.
         merge_keys(cfg, args.opts, [
             'SOLVER.IMS_PER_BATCH', 'SOLVER.BASE_LR', 'SOLVER.MAX_ITER',
-            'SOLVER.STEPS'
+            'SOLVER.STEPS', 'SOLVER.CHECKPOINT_PERIOD'
         ])
         assert num_gpus in (1, 2, 4)
         scale = args.reduce_batch
@@ -244,12 +244,14 @@ def main():
             logging.info('Updating cfg.%s: %s -> %s', key, old_value,
                          new_value)
             d[subkey] = new_value
+
         update_config('SOLVER.IMS_PER_BATCH',
                       _safe_int(cfg.SOLVER.IMS_PER_BATCH / scale))
-        update_config('SOLVER.BASE_LR',
-                      cfg.SOLVER.BASE_LR / scale)
+        update_config('SOLVER.BASE_LR', cfg.SOLVER.BASE_LR / scale)
         update_config('SOLVER.MAX_ITER',
                       _safe_int(cfg.SOLVER.MAX_ITER * scale))
+        update_config('SOLVER.CHECKPOINT_PERIOD',
+                      _safe_int(cfg.SOLVER.CHECKPOINT_PERIOD * scale))
         update_config('SOLVER.STEPS',
                       tuple(_safe_int(x * scale) for x in cfg.SOLVER.STEPS))
 
