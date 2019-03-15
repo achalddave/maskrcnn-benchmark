@@ -132,8 +132,8 @@ def do_train(
         if iteration == max_iter:
             checkpointer.save("model_final", **arguments)
 
-        if ((iteration == 1 or iteration % 1000 == 0) and is_main_process()
-                and hasattr(meters, 'writer')):
+        if (iteration < 5000 and (iteration == 1 or iteration % 1000 == 0)
+                and is_main_process() and hasattr(meters, 'writer')):
             index = random.randrange(len(targets))
             image = get_vis_image(images, index)
             box = targets[index].convert('xyxy').bbox[0]
