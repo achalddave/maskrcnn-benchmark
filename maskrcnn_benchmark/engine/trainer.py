@@ -107,23 +107,26 @@ def do_train(
         eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
 
         if iteration % 20 == 0 or iteration == max_iter:
-            logger.info(
-                meters.delimiter.join(
-                    [
-                        "eta: {eta}",
-                        "iter: {iter}",
-                        "{meters}",
-                        "lr: {lr:.6f}",
-                        "max mem: {memory:.0f}",
-                    ]
-                ).format(
+            # Log only certain keys to stdout + file, and rest only to file.
+            log_to_stdout = set([
+                'loss', 'time', 'loss_box_reg', 'loss_mask', 'loss_objectness'
+            ])
+            logging.info(
+                meters.delimiter.join([
+                    "eta: {eta}",
+                    "iter: {iter}",
+                    "{meters}",
+                    "lr: {lr:.6f}",
+                    "max mem: {memory:.0f}",
+                ]).format(
                     eta=eta_string,
                     iter=iteration,
-                    meters=str(meters),
+                    meters=meters.to_log_str(log_keys=log_to_stdout),
                     lr=optimizer.param_groups[0]["lr"],
                     memory=torch.cuda.max_memory_allocated() / 1024.0 / 1024.0,
-                )
-            )
+                ))
+            logging.debug(
+                'Other meters: %s', meters.to_log_str(log_keys=log_to_stdout))
         if iteration % checkpoint_period == 0:
             checkpointer.save("model_{:07d}".format(iteration), **arguments)
         if iteration == max_iter:
