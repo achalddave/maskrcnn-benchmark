@@ -85,8 +85,13 @@ def train(cfg, local_rank, distributed, use_tensorboard=False):
     checkpointer = DetectronCheckpointer(
         cfg, model, optimizer, scheduler, output_dir, save_to_disk
     )
+    # load_scheduler_only_epoch will prefer the scheduler specified in the
+    # config rather than the one in the checkpoint, and will load only the
+    # last_epoch from the checkpoint.
     extra_checkpoint_data = checkpointer.load(
-        cfg.MODEL.WEIGHT, load_model_only=cfg.MODEL.LOAD_ONLY_WEIGHTS)
+        cfg.MODEL.WEIGHT,
+        load_model_only=cfg.MODEL.LOAD_ONLY_WEIGHTS,
+        load_scheduler_only_epoch=True)
     if not cfg.MODEL.LOAD_ONLY_WEIGHTS:
         arguments.update(extra_checkpoint_data)
 
