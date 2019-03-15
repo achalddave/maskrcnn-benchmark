@@ -61,13 +61,18 @@ class MetricLogger(object):
         raise AttributeError("'{}' object has no attribute '{}'".format(
                     type(self).__name__, attr))
 
-    def __str__(self):
+    def to_log_str(self, log_keys=None):
         loss_str = []
         for name, meter in self.meters.items():
+            if log_keys is not None and name not in log_keys:
+                continue
             loss_str.append(
                 "{}: {:.4f} ({:.4f})".format(name, meter.median, meter.global_avg)
             )
         return self.delimiter.join(loss_str)
+
+    def __str__(self):
+        return self.to_log_str()
 
 
 class TensorboardLogger(MetricLogger):
