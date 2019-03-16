@@ -3,6 +3,8 @@
 Implements the Generalized R-CNN framework
 """
 
+import logging
+
 import torch
 from torch import nn
 
@@ -11,6 +13,22 @@ from maskrcnn_benchmark.structures.image_list import to_image_list
 from ..backbone import build_backbone
 from ..rpn.rpn import build_rpn
 from ..roi_heads.roi_heads import build_roi_heads
+
+
+def freeze_submodules(module, to_freeze):
+    freeze_modules = set(to_freeze)
+    module_names = set(y[0] for y in module.named_modules())
+    unknown_frozen_modules = freeze_modules - module_names
+    if unknown_frozen_modules:
+        raise ValueError('Unknown modules in MODEL.FREEZE_SUBMODULES: %s' %
+                         list(unknown_frozen_modules))
+    for name in freeze_modules:
+        child_module = module
+        for part in name.split('.'):
+            child_module = child_module._modules[part]
+        logging.info(f'Freezing {module.__class__.__name__} submodule: {name}')
+        for p in child_module.parameters():
+            p.requires_grad = False
 
 
 class GeneralizedRCNN(nn.Module):
@@ -29,6 +47,7 @@ class GeneralizedRCNN(nn.Module):
         self.backbone = build_backbone(cfg)
         self.rpn = build_rpn(cfg)
         self.roi_heads = build_roi_heads(cfg)
+        freeze_submodules(self, set(cfg.MODEL.FREEZE_SUBMODULES))
 
     def forward(self, images, targets=None):
         """

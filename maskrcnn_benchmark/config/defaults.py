@@ -37,6 +37,9 @@ _C.MODEL.WEIGHT = ""
 # See also: https://github.com/facebookresearch/maskrcnn-benchmark/issues/372
 _C.MODEL.LOAD_ONLY_WEIGHTS = False
 
+# Valid values are any modules in the META_ARCHITECTURE (e.g. GeneralizedRCNN,
+# SiamRCNN).
+_C.MODEL.FREEZE_SUBMODULES = []
 
 # -----------------------------------------------------------------------------
 # INPUT
