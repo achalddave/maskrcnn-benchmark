@@ -80,11 +80,13 @@ class TensorboardLogger(MetricLogger):
                  log_dir='logs',
                  exp_name='maskrcnn-benchmark',
                  start_iter=0,
-                 delimiter='\t'):
+                 delimiter='\t',
+                 log_interval=20):
 
         super(TensorboardLogger, self).__init__(delimiter)
         self.iteration = start_iter
         self.writer = self._get_tensorboard_writer(log_dir, exp_name)
+        self.log_interval = log_interval
 
     @staticmethod
     def _get_tensorboard_writer(log_dir, exp_name):
@@ -106,9 +108,14 @@ class TensorboardLogger(MetricLogger):
     def update(self, ** kwargs):
         super(TensorboardLogger, self).update(**kwargs)
         if self.writer:
-            for k, v in kwargs.items():
-                if isinstance(v, torch.Tensor):
-                    v = v.item()
-                assert isinstance(v, (float, int))
-                self.writer.add_scalar(k, v, self.iteration)
+            if self.iteration % self.log_interval == 0:
+                # Log to tensorboard only every few iterations
+                for k in kwargs:
+                    v = torch.tensor(
+                        list(
+                            self.meters[k].deque)[-self.log_interval:]).mean()
+                    if isinstance(v, torch.Tensor):
+                        v = v.item()
+                    assert isinstance(v, (float, int))
+                    self.writer.add_scalar(k, v, self.iteration)
             self.iteration += 1
