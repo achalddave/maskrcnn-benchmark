@@ -10,6 +10,7 @@ from maskrcnn_benchmark.utils.env import setup_environment  # noqa F401 isort:sk
 import argparse
 import logging
 import os
+import uuid
 from pathlib import Path
 
 from script_utils.common import common_setup
@@ -196,6 +197,11 @@ def main():
 
     args = parser.parse_args()
 
+    # Generate a unique experiment ID for this run.
+    # Note: uuid generation relies on os.urandom, so it is not affected by,
+    # e.g., random.seed.
+    experiment_id = uuid.uuid4()
+
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.distributed = num_gpus > 1
 
@@ -283,6 +289,10 @@ def main():
     if get_rank() == 0:
         with open(Path(output_dir) / 'config.yaml', 'w') as f:
             f.write(cfg.dump())
+
+    logging.info('Experiment id: %s', experiment_id)
+    with open(os.path.join(output_dir, 'experiment_id.txt'), 'w') as f:
+        f.write('%s\n' % experiment_id)
 
     model = train(
         cfg=cfg,
