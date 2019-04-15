@@ -22,7 +22,6 @@ class Resize(_Resize):
         return F.resize(image, size)
 
 
-
 class COCODemo(object):
     # COCO categories for pretty print
     CATEGORIES = [
