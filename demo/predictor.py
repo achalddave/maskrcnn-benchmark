@@ -3,7 +3,9 @@ import cv2
 import logging
 import torch
 from torchvision import transforms as T
+from torchvision.transforms import functional as F
 
+from maskrcnn_benchmark.data.transforms.transforms import Resize as _Resize
 from maskrcnn_benchmark.modeling.detector import build_detection_model
 from maskrcnn_benchmark.utils.checkpoint import DetectronCheckpointer
 from maskrcnn_benchmark.structures.image_list import to_image_list
@@ -11,6 +13,14 @@ from maskrcnn_benchmark.modeling.roi_heads.mask_head.inference import Masker
 from maskrcnn_benchmark import layers as L
 from maskrcnn_benchmark.utils import cv2_util
 from maskrcnn_benchmark.utils.colormap import colormap
+
+
+class Resize(_Resize):
+    """Like maskrcnn transforms.Resize, but without a target."""
+    def __call__(self, image):
+        size = self.get_size(image.size)
+        return F.resize(image, size)
+
 
 
 class COCODemo(object):
@@ -105,7 +115,6 @@ class COCODemo(object):
         confidence_threshold=0.7,
         show_mask_heatmaps=False,
         masks_per_dim=2,
-        min_image_size=224,
         model_path=None
     ):
         self.cfg = cfg.clone()
@@ -113,7 +122,6 @@ class COCODemo(object):
         self.model.eval()
         self.device = torch.device(cfg.MODEL.DEVICE)
         self.model.to(self.device)
-        self.min_image_size = min_image_size
 
         save_dir = cfg.OUTPUT_DIR
         checkpointer = DetectronCheckpointer(
@@ -164,15 +172,13 @@ class COCODemo(object):
             mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD
         )
 
-        transform = T.Compose(
-            [
-                T.ToPILImage(),
-                T.Resize(self.min_image_size),
-                T.ToTensor(),
-                to_bgr_transform,
-                normalize_transform,
-            ]
-        )
+        transform = T.Compose([
+            T.ToPILImage(),
+            Resize(self.cfg.INPUT.MIN_SIZE_TEST, self.cfg.INPUT.MAX_SIZE_TEST),
+            T.ToTensor(),
+            to_bgr_transform,
+            normalize_transform,
+        ])
         return transform
 
     def run_on_opencv_image(self, image):
