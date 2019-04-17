@@ -14,6 +14,7 @@ import uuid
 from pathlib import Path
 
 from script_utils.common import common_setup
+from script_utils.log import add_time_to_path
 
 import torch
 
@@ -28,7 +29,6 @@ from maskrcnn_benchmark.utils.checkpoint import DetectronCheckpointer
 from maskrcnn_benchmark.utils.collect_env import collect_env_info
 from maskrcnn_benchmark.utils.comm import synchronize, get_rank
 from maskrcnn_benchmark.utils.imports import import_file
-from maskrcnn_benchmark.utils.logger import setup_logger
 from maskrcnn_benchmark.utils.metric_logger import (
     MetricLogger, TensorboardLogger)
 from maskrcnn_benchmark.utils.miscellaneous import mkdir
@@ -270,10 +270,6 @@ def main():
     cfg.merge_from_list(args.opts)
     cfg.freeze()
 
-    logging.info('Config: %s', cfg)
-    with open(Path(output_dir) / 'config.yaml', 'wb') as f:
-        f.write(cfg.dump())
-
     logger = logging.getLogger("maskrcnn_benchmark")
     logger.info("Using {} GPUs".format(num_gpus))
     logger.info(args)
@@ -287,7 +283,8 @@ def main():
         file_logger.info(config_str)
     file_logger.info("Running with config:\n{}".format(cfg))
     if get_rank() == 0:
-        with open(Path(output_dir) / 'config.yaml', 'w') as f:
+        config_output = add_time_to_path(Path(output_dir) / 'config.yaml')
+        with open(config_output, 'w') as f:
             f.write(cfg.dump())
 
     logging.info('Experiment id: %s', experiment_id)
