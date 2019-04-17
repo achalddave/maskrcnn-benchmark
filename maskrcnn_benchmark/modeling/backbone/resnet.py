@@ -33,7 +33,7 @@ StageSpec = namedtuple(
     "StageSpec",
     [
         "index",  # Index of the stage, eg 1, 2, ..,. 5
-        "block_count",  # Numer of residual blocks in the stage
+        "block_count",  # Number of residual blocks in the stage
         "return_features",  # True => return the last feature map from this stage
     ],
 )
@@ -187,6 +187,7 @@ class ResNetHead(nn.Module):
             stride = None
             self.add_module(name, module)
             self.stages.append(name)
+        self.out_channels = out_channels
 
     def forward(self, x):
         for stage in self.stages:

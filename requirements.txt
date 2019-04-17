@@ -1,1 +1,6 @@
 git+https://github.com/achalddave/python-script-utils.git#egg=script_utils
+ninja
+yacs
+cython
+matplotlib
+tqdm
