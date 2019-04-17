@@ -7,7 +7,6 @@ import torch
 import torch.distributed as dist
 
 from maskrcnn_benchmark.utils.comm import get_world_size
-from maskrcnn_benchmark.utils.metric_logger import MetricLogger
 
 
 def reduce_loss_dict(loss_dict):
@@ -44,10 +43,11 @@ def do_train(
     device,
     checkpoint_period,
     arguments,
+    meters
 ):
     logger = logging.getLogger("maskrcnn_benchmark.trainer")
     logger.info("Start training")
-    meters = MetricLogger(delimiter="  ")
+
     max_iter = len(data_loader)
     start_iter = arguments["iteration"]
     model.train()
@@ -70,7 +70,6 @@ def do_train(
         # reduce losses over all GPUs for logging purposes
         loss_dict_reduced = reduce_loss_dict(loss_dict)
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
-        meters.update(loss=losses_reduced, **loss_dict_reduced)
 
         optimizer.zero_grad()
         losses.backward()
@@ -78,7 +77,11 @@ def do_train(
 
         batch_time = time.time() - end
         end = time.time()
-        meters.update(time=batch_time, data=data_time)
+        meters.update(
+            loss=losses_reduced,
+            time=batch_time,
+            data=data_time,
+            **loss_dict_reduced)
 
         eta_seconds = meters.time.global_avg * (max_iter - iteration)
         eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))

@@ -15,17 +15,21 @@ from pathlib import Path
 from script_utils.common import common_setup
 
 import torch
+
 from maskrcnn_benchmark.config import cfg
 from maskrcnn_benchmark.data import make_data_loader
-from maskrcnn_benchmark.solver import make_lr_scheduler
-from maskrcnn_benchmark.solver import make_optimizer
 from maskrcnn_benchmark.engine.inference import inference
 from maskrcnn_benchmark.engine.trainer import do_train
 from maskrcnn_benchmark.modeling.detector import build_detection_model
+from maskrcnn_benchmark.solver import make_lr_scheduler
+from maskrcnn_benchmark.solver import make_optimizer
 from maskrcnn_benchmark.utils.checkpoint import DetectronCheckpointer
 from maskrcnn_benchmark.utils.collect_env import collect_env_info
 from maskrcnn_benchmark.utils.comm import synchronize, get_rank
 from maskrcnn_benchmark.utils.imports import import_file
+from maskrcnn_benchmark.utils.logger import setup_logger
+from maskrcnn_benchmark.utils.metric_logger import (
+    MetricLogger, TensorboardLogger)
 from maskrcnn_benchmark.utils.miscellaneous import mkdir
 
 
@@ -39,7 +43,7 @@ def _safe_int(x):
         raise ValueError('Unknown type: %s (%s)' % (x, type(x)))
 
 
-def train(cfg, local_rank, distributed):
+def train(cfg, local_rank, distributed, use_tensorboard=False):
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
     model.to(device)
@@ -74,6 +78,14 @@ def train(cfg, local_rank, distributed):
     )
 
     checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
+    if use_tensorboard:
+        meters = TensorboardLogger(
+            log_dir=output_dir,
+            exp_name=cfg.TENSORBOARD_EXP_NAME,
+            start_iter=arguments['iteration'],
+            delimiter="  ")
+    else:
+        meters = MetricLogger(delimiter="  ")
 
     do_train(
         model,
@@ -84,6 +96,7 @@ def train(cfg, local_rank, distributed):
         device,
         checkpoint_period,
         arguments,
+        meters
     )
 
     return model
@@ -141,6 +154,13 @@ def main():
         dest="skip_test",
         help="Do not test the final model",
         action="store_true",
+    )
+    parser.add_argument(
+        "--use-tensorboard",
+        dest="use_tensorboard",
+        help="Use tensorboardX logger (Requires tensorboardX installed)",
+        action="store_true",
+        default=False
     )
     parser.add_argument(
         "opts",
@@ -236,7 +256,12 @@ def main():
         with open(Path(output_dir) / 'config.yaml', 'w') as f:
             f.write(cfg.dump())
 
-    model = train(cfg, args.local_rank, args.distributed)
+    model = train(
+        cfg=cfg,
+        local_rank=args.local_rank,
+        distributed=args.distributed,
+        use_tensorboard=args.use_tensorboard
+    )
 
     if not args.skip_test:
         test(cfg, model, args.distributed)
