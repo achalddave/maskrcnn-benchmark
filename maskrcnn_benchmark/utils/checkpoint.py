@@ -49,7 +49,11 @@ class Checkpointer(object):
         torch.save(data, save_file)
         self.tag_last_checkpoint(save_file)
 
-    def load(self, f=None, allow_override=True, load_model_only=False):
+    def load(self,
+             f=None,
+             allow_override=True,
+             load_model_only=False,
+             load_scheduler_only_epoch=False):
         if self.has_checkpoint() and allow_override:
             # override argument with existing checkpoint
             f = self.get_checkpoint_file()
@@ -67,8 +71,14 @@ class Checkpointer(object):
             self.logger.info("Loading optimizer from {}".format(f))
             self.optimizer.load_state_dict(checkpoint.pop("optimizer"))
         if "scheduler" in checkpoint and self.scheduler:
-            self.logger.info("Loading scheduler from {}".format(f))
-            self.scheduler.load_state_dict(checkpoint.pop("scheduler"))
+            if load_scheduler_only_epoch:
+                self.logger.info(
+                    "Loading last epoch for scheduler from {}".format(f))
+                self.scheduler.last_epoch = checkpoint.pop("scheduler")[
+                    "last_epoch"]
+            else:
+                self.logger.info("Loading scheduler from {}".format(f))
+                self.scheduler.load_state_dict(checkpoint.pop("scheduler"))
 
         # return any further checkpoint data
         return checkpoint
