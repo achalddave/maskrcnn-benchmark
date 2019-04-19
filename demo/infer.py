@@ -15,7 +15,7 @@ IMG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm']
 
 
 def is_image(path):
-    return path.is_file and any(path.suffix == extension
+    return path.is_file and any(path.suffix.lower() == extension
                                 for extension in IMG_EXTENSIONS)
 
 
@@ -85,11 +85,9 @@ def main():
     cfg.merge_from_list(args.opts)
     cfg.freeze()
 
-    # Avoid lots of logging when loading model.
     coco_demo = COCODemo(
         cfg,
         model_path=str(args.model_path.resolve()),
-        min_image_size=800,
         confidence_threshold=0.7)
 
     if args.image_dir:
@@ -134,7 +132,10 @@ def main():
             'segmentations': [[] for _ in coco_demo.CATEGORIES],
             'keypoints': [[] for _ in coco_demo.CATEGORIES]
         }
-        rle_masks = convert_segmentation_coco_format(predictions)
+        if predictions.has_field('mask'):
+            rle_masks = convert_segmentation_coco_format(predictions)
+        else:
+            rle_masks = [None for _ in predictions.get_field('labels')]
 
         for i, label in enumerate(predictions.get_field('labels')):
             box = np.zeros(5)
