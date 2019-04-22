@@ -62,9 +62,6 @@ def main():
         help='directory to save demo results',
         default="infer_outputs")
     parser.add_argument(
-        '--dataset',
-        default='coco_2017_train')
-    parser.add_argument(
         '--recursive',
         help='Whether to search recursively in --image-dir for images.',
         action='store_true')
