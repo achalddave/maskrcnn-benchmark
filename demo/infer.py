@@ -150,6 +150,7 @@ def main():
     common_setup(__file__, args.output_dir, args)
 
     torch.set_num_threads(args.torch_threads)
+    os.environ['OMP_NUM_THREADS'] = str(args.torch_threads)
 
     # update the config options with the config file
     cfg.merge_from_file(args.config_file)
