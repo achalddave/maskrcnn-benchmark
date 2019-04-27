@@ -247,6 +247,8 @@ class BoxList(object):
         return bbox
 
     def reordered(self, indices):
+        if len(self) == 0:
+            return self.copy_with_fields(self.fields())
         fields = set(self.fields())
         output = BoxList(
             torch.cat(
@@ -269,14 +271,19 @@ class BoxList(object):
             range(len(scores)), key=lambda i: scores[i], reverse=reverse)
         return self.reordered(sorted_indices)
 
-    def area_sorted(self, reverse=False):
+    def box_area_sorted(self, reverse=False):
         """Return boxlist sorted by area."""
-        areas = [x.sum() for x in self.get_field('mask')]
+        areas = self.area()
         sorted_indices = sorted(
             range(len(areas)), key=lambda i: areas[i], reverse=reverse)
         return self.reordered(sorted_indices)
 
-
+    def mask_area_sorted(self, reverse=False):
+        """Return boxlist sorted by mask area."""
+        areas = [x.sum() for x in self.get_field('mask')]
+        sorted_indices = sorted(
+            range(len(areas)), key=lambda i: areas[i], reverse=reverse)
+        return self.reordered(sorted_indices)
 
     def __repr__(self):
         s = self.__class__.__name__ + "("

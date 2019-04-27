@@ -196,7 +196,10 @@ class COCODemo(object):
         """
         predictions = self.compute_prediction(image)
         top_predictions = self.select_top_predictions(predictions)
-        top_predictions = top_predictions.area_sorted(reverse=True)
+        if top_predictions.has_field('mask'):
+            top_predictions = top_predictions.mask_area_sorted(reverse=True)
+        else:
+            top_predictions = top_predictions.box_area_sorted(reverse=True)
 
         result = image.copy()
         if self.show_mask_heatmaps:
@@ -212,7 +215,10 @@ class COCODemo(object):
 
     def visualize(self, image, top_predictions):
         result = image.copy()
-        top_predictions = top_predictions.area_sorted(reverse=True)
+        if top_predictions.has_field('mask'):
+            top_predictions = top_predictions.mask_area_sorted(reverse=True)
+        else:
+            top_predictions = top_predictions.box_area_sorted(reverse=True)
         result = self.overlay_boxes(result, top_predictions)
         if self.cfg.MODEL.MASK_ON:
             result = self.overlay_mask(result, top_predictions)
