@@ -1,5 +1,5 @@
 import multiprocessing as mp
-from track.utils.parallel.pool_context import PoolWithContext
+from .pool_context import PoolWithContext
 
 
 class FixedGpuPool:
