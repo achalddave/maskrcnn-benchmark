@@ -137,7 +137,10 @@ def main():
         help='Whether to search recursively in --image-dir for images.',
         action='store_true')
     parser.add_argument('--visualize', action='store_true')
-    parser.add_argument('--torch-threads', default=4, type=int)
+    parser.add_argument(
+        '--torch-threads',
+        type=int,
+        help='Defaults to 1 if using multiple gpus, otherwise unrestricted.')
     parser.add_argument(
         "opts",
         help="Modify config options using the command-line",
@@ -149,11 +152,16 @@ def main():
     args.output_dir.mkdir(exist_ok=True, parents=True)
     common_setup(__file__, args.output_dir, args)
 
-    torch.set_num_threads(args.torch_threads)
-    os.environ['OMP_NUM_THREADS'] = str(args.torch_threads)
+    if len(args.gpus) > 1 and args.torch_threads is None:
+        args.torch_threads = 1
+    if args.torch_threads is not None:
+        torch.set_num_threads(args.torch_threads)
+        os.environ['OMP_NUM_THREADS'] = str(args.torch_threads)
 
     # update the config options with the config file
     cfg.merge_from_file(args.config_file)
+    if len(args.gpus) > 1 and 'DATALOADER.NUM_WORKERS' not in args.opts:
+        args.opts += ['DATALOADER.NUM_WORKERS', '1']
     cfg.merge_from_list(args.opts)
     cfg.freeze()
 
