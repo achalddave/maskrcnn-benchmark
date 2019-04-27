@@ -246,6 +246,38 @@ class BoxList(object):
                 raise KeyError("Field '{}' not found in {}".format(field, self))
         return bbox
 
+    def reordered(self, indices):
+        fields = set(self.fields())
+        output = BoxList(
+            torch.cat(
+                [self.bbox[i].unsqueeze(0) for i in indices], dim=0),
+            self.size, self.mode)
+        for field in fields:
+            field_data = []
+            for i in indices:
+                x = self.get_field(field)[i].unsqueeze(0)
+                field_data.append(x)
+            output.add_field(field, torch.cat(field_data, dim=0))
+            if output.get_field(field).shape != self.get_field(field).shape:
+                __import__('ipdb').set_trace()
+        return output
+
+    def confidence_sorted(self, reverse=False):
+        """Return boxlist sorted by confidence."""
+        scores = self.get_field('scores').tolist()
+        sorted_indices = sorted(
+            range(len(scores)), key=lambda i: scores[i], reverse=reverse)
+        return self.reordered(sorted_indices)
+
+    def area_sorted(self, reverse=False):
+        """Return boxlist sorted by area."""
+        areas = [x.sum() for x in self.get_field('mask')]
+        sorted_indices = sorted(
+            range(len(areas)), key=lambda i: areas[i], reverse=reverse)
+        return self.reordered(sorted_indices)
+
+
+
     def __repr__(self):
         s = self.__class__.__name__ + "("
         s += "num_boxes={}, ".format(len(self))

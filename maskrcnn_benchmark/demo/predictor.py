@@ -14,6 +14,10 @@ from maskrcnn_benchmark import layers as L
 from maskrcnn_benchmark.utils import cv2_util
 from maskrcnn_benchmark.utils.colormap import colormap
 
+_GRAY = (218, 227, 218)
+_GREEN = (18, 127, 15)
+_WHITE = (255, 255, 255)
+
 
 class Resize(_Resize):
     """Like maskrcnn transforms.Resize, but without a target."""
@@ -192,6 +196,7 @@ class COCODemo(object):
         """
         predictions = self.compute_prediction(image)
         top_predictions = self.select_top_predictions(predictions)
+        top_predictions = top_predictions.area_sorted(reverse=True)
 
         result = image.copy()
         if self.show_mask_heatmaps:
@@ -203,6 +208,17 @@ class COCODemo(object):
             result = self.overlay_keypoints(result, top_predictions)
         result = self.overlay_class_names(result, top_predictions)
 
+        return result
+
+    def visualize(self, image, top_predictions):
+        result = image.copy()
+        top_predictions = top_predictions.area_sorted(reverse=True)
+        result = self.overlay_boxes(result, top_predictions)
+        if self.cfg.MODEL.MASK_ON:
+            result = self.overlay_mask(result, top_predictions)
+        if self.cfg.MODEL.KEYPOINT_ON:
+            result = self.overlay_keypoints(result, top_predictions)
+        result = self.overlay_class_names(result, top_predictions)
         return result
 
     def compute_prediction(self, original_image):
@@ -271,7 +287,7 @@ class COCODemo(object):
         colors = (colors % 255).numpy().astype("uint8")
         return colors
 
-    def overlay_boxes(self, image, predictions):
+    def overlay_boxes(self, image, predictions, color=_GREEN, thickness=1):
         """
         Adds the predicted boxes on top of the image
 
@@ -283,18 +299,22 @@ class COCODemo(object):
         labels = predictions.get_field("labels")
         boxes = predictions.bbox
 
-        colors = [[0, 0, 255] for _ in labels]  # Use green for bounding boxes
+        colors = [_GREEN for _ in labels]  # Use green for bounding boxes
 
         for box, color in zip(boxes, colors):
             box = box.to(torch.int64)
             top_left, bottom_right = box[:2].tolist(), box[2:].tolist()
-            image = cv2.rectangle(
-                image, tuple(top_left), tuple(bottom_right), tuple(color), 1
-            )
+            image = cv2.rectangle(image, tuple(top_left), tuple(bottom_right),
+                                  tuple(color), thickness)
 
         return image
 
-    def overlay_mask(self, image, predictions):
+    def overlay_mask(self,
+                     image,
+                     predictions,
+                     alpha=0.3,
+                     border_alpha=1.0,
+                     border_thick=2):
         """
         Adds the instances contours for each predicted object.
         Each label has a different color.
@@ -310,15 +330,32 @@ class COCODemo(object):
         colors = colormap(rgb=True)[:len(labels)]
 
         for mask, color in zip(masks, colors):
-            thresh = mask[0, :, :, None]
-            contours, hierarchy = cv2_util.findContours(
-                thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+            image = image.astype(np.float32)
+            mask = mask[0, :, :, None]
+            idx = np.nonzero(mask)
+
+            image[idx[0], idx[1], :] *= 1.0 - alpha
+            image[idx[0], idx[1], :] += [alpha * x for x in color]
+
+            if border_alpha == 0:
+                continue
+
+            border_color = [x * 0.5 for x in color]
+            if isinstance(border_color, np.ndarray):
+                border_color = border_color.tolist()
+            contours, _ = cv2_util.findContours(
+                mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
             )
-            image = cv2.drawContours(image, contours, -1, color.tolist(), 3)
-
-        composite = image
-
-        return composite
+            if border_alpha < 1:
+                with_border = image.copy()
+                cv2.drawContours(with_border, contours, -1, border_color,
+                                 border_thick, cv2.LINE_AA)
+                image = (
+                    (1 - border_alpha) * image + border_alpha * with_border)
+            else:
+                cv2.drawContours(image, contours, -1, border_color,
+                                 border_thick, cv2.LINE_AA)
+        return image
 
     def overlay_keypoints(self, image, predictions):
         keypoints = predictions.get_field("keypoints")
@@ -365,7 +402,11 @@ class COCODemo(object):
                 result[start_y:end_y, start_x:end_x] = masks[y, x]
         return cv2.applyColorMap(result.numpy(), cv2.COLORMAP_JET)
 
-    def overlay_class_names(self, image, predictions):
+    def overlay_class_names(self,
+                            image,
+                            predictions,
+                            bg_color=_GREEN,
+                            text_color=_GRAY):
         """
         Adds detected class names and scores in the positions defined by the
         top-left corner of the predicted bounding box
@@ -383,10 +424,24 @@ class COCODemo(object):
         template = "{}: {:.2f}"
         for box, score, label in zip(boxes, scores, labels):
             x, y = box[:2]
-            s = template.format(label, score)
+            txt = template.format(label, score)
+            # Compute text size.
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.5
+            ((txt_w, txt_h), _) = cv2.getTextSize(txt, font, font_scale, 1)
+            # Place text background.
+            back_tl = x, y - int(1.3 * txt_h)
+            back_br = x + txt_w, y
+            # Show text.
+            txt_tl = x, y - int(0.3 * txt_h)
+            cv2.rectangle(image, back_tl, back_br, bg_color, -1)
             cv2.putText(
-                image, s, (x, y), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 1
-            )
+                image,
+                txt, txt_tl,
+                font,
+                font_scale,
+                text_color,
+                lineType=cv2.LINE_AA)
 
         return image
 
