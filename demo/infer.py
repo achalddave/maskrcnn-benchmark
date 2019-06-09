@@ -138,7 +138,7 @@ def main():
         action='store_true')
     parser.add_argument('--visualize', action='store_true')
     parser.add_argument(
-        '--torch-threads',
+        '--threads-per-worker',
         type=int,
         help='Defaults to 1 if using multiple gpus, otherwise unrestricted.')
     parser.add_argument(
@@ -152,11 +152,11 @@ def main():
     args.output_dir.mkdir(exist_ok=True, parents=True)
     common_setup(__file__, args.output_dir, args)
 
-    if len(args.gpus) > 1 and args.torch_threads is None:
-        args.torch_threads = 1
-    if args.torch_threads is not None:
-        torch.set_num_threads(args.torch_threads)
-        os.environ['OMP_NUM_THREADS'] = str(args.torch_threads)
+    if len(args.gpus) > 1 and args.threads_per_worker is None:
+        args.threads_per_worker = 1
+    if args.threads_per_worker is not None:
+        torch.set_num_threads(args.threads_per_worker)
+        os.environ['OMP_NUM_THREADS'] = str(args.threads_per_worker)
 
     # update the config options with the config file
     cfg.merge_from_file(args.config_file)
