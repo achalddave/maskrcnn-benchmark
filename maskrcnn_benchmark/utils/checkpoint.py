@@ -51,10 +51,10 @@ class Checkpointer(object):
 
     def load(self,
              f=None,
-             allow_override=True,
+             use_latest=True,
              load_model_only=False,
              load_scheduler_only_epoch=False):
-        if self.has_checkpoint() and allow_override:
+        if self.has_checkpoint() and use_latest:
             # override argument with existing checkpoint
             f = self.get_checkpoint_file()
         if not f:

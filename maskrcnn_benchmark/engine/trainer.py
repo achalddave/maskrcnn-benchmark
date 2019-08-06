@@ -11,6 +11,7 @@ import torch.distributed as dist
 
 from maskrcnn_benchmark.utils.comm import get_world_size, is_main_process
 
+from apex import amp
 
 def reduce_loss_dict(loss_dict):
     """
@@ -73,6 +74,10 @@ def do_train(
     start_training_time = time.time()
     end = time.time()
     for iteration, (images, targets, _) in enumerate(data_loader, start_iter):
+        
+        if any(len(target) < 1 for target in targets):
+            logger.error(f"Iteration={iteration + 1} || Image Ids used for training {_} || targets Length={[len(target) for target in targets]}" )
+            continue
         data_time = time.time() - end
         iteration = iteration + 1
         arguments["iteration"] = iteration
@@ -91,7 +96,10 @@ def do_train(
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
 
         optimizer.zero_grad()
-        losses.backward()
+        # Note: If mixed precision is not used, this ends up doing nothing
+        # Otherwise apply loss scaling for mixed-precision recipe
+        with amp.scale_loss(losses, optimizer) as scaled_losses:
+            scaled_losses.backward()
         optimizer.step()
 
         batch_time = time.time() - end

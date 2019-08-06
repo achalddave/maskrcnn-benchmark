@@ -19,7 +19,7 @@ def load_model(config, model_path):
         config, model, save_dir=config.OUTPUT_DIR)
     logging.info('Loading model from model-path: %s', model_path)
     load_path = model_path
-    checkpointer.load(load_path, allow_override=False)
+    checkpointer.load(load_path, use_latest=False)
     return model
 
 

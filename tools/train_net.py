@@ -31,7 +31,14 @@ from maskrcnn_benchmark.utils.comm import synchronize, get_rank
 from maskrcnn_benchmark.utils.imports import import_file
 from maskrcnn_benchmark.utils.metric_logger import (
     MetricLogger, TensorboardLogger)
-from maskrcnn_benchmark.utils.miscellaneous import mkdir
+from maskrcnn_benchmark.utils.miscellaneous import mkdir, save_config
+
+# See if we can use apex.DistributedDataParallel instead of the torch default,
+# and enable mixed-precision via apex.amp
+try:
+    from apex import amp
+except ImportError:
+    raise ImportError('Use APEX for multi-precision via apex.amp')
 
 
 def _safe_int(x):
@@ -69,6 +76,11 @@ def train(cfg, local_rank, distributed, use_tensorboard=False):
 
     optimizer = make_optimizer(cfg, model)
     scheduler = make_lr_scheduler(cfg, optimizer)
+
+    # Initialize mixed-precision training
+    use_mixed_precision = cfg.DTYPE == "float16"
+    amp_opt_level = 'O1' if use_mixed_precision else 'O0'
+    model, optimizer = amp.initialize(model, optimizer, opt_level=amp_opt_level)
 
     if distributed:
         model = torch.nn.parallel.DistributedDataParallel(
@@ -291,12 +303,12 @@ def main():
     with open(os.path.join(output_dir, 'experiment_id.txt'), 'w') as f:
         f.write('%s\n' % experiment_id)
 
-    model = train(
-        cfg=cfg,
-        local_rank=args.local_rank,
-        distributed=args.distributed,
-        use_tensorboard=args.use_tensorboard
-    )
+    output_config_path = os.path.join(cfg.OUTPUT_DIR, 'config.yml')
+    logger.info("Saving config into: {}".format(output_config_path))
+    # save overloaded model config in the output directory
+    save_config(cfg, output_config_path)
+
+    model = train(cfg, args.local_rank, args.distributed, use_tensorboard=args.use_tensorboard)
 
     if not args.skip_test:
         run_test(cfg, model, args.distributed)

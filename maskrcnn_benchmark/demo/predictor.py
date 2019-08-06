@@ -4,8 +4,6 @@ import logging
 import torch
 from torchvision import transforms as T
 from torchvision.transforms import functional as F
-
-from maskrcnn_benchmark.data.transforms.transforms import Resize as _Resize
 from maskrcnn_benchmark.modeling.detector import build_detection_model
 from maskrcnn_benchmark.utils.checkpoint import DetectronCheckpointer
 from maskrcnn_benchmark.structures.image_list import to_image_list
@@ -19,13 +17,38 @@ _GREEN = (18, 127, 15)
 _WHITE = (255, 255, 255)
 
 
-class Resize(_Resize):
-    """Like maskrcnn transforms.Resize, but without a target."""
+class Resize(object):
+    def __init__(self, min_size, max_size):
+        self.min_size = min_size
+        self.max_size = max_size
+
+    # modified from torchvision to add support for max size
+    def get_size(self, image_size):
+        w, h = image_size
+        size = self.min_size
+        max_size = self.max_size
+        if max_size is not None:
+            min_original_size = float(min((w, h)))
+            max_original_size = float(max((w, h)))
+            if max_original_size / min_original_size * size > max_size:
+                size = int(round(max_size * min_original_size / max_original_size))
+
+        if (w <= h and w == size) or (h <= w and h == size):
+            return (h, w)
+
+        if w < h:
+            ow = size
+            oh = int(size * h / w)
+        else:
+            oh = size
+            ow = int(size * w / h)
+
+        return (oh, ow)
+
     def __call__(self, image):
         size = self.get_size(image.size)
-        return F.resize(image, size)
-
-
+        image = F.resize(image, size)
+        return image
 class COCODemo(object):
     # COCO categories for pretty print
     CATEGORIES = [
@@ -141,7 +164,7 @@ class COCODemo(object):
                 load_path = cfg.MODEL.WEIGHT
                 logging.info('Loading model from cfg.MODEL.WEIGHT: %s',
                              load_path)
-        checkpointer.load(load_path, allow_override=False)
+        checkpointer.load(load_path, use_latest=False)
 
         self.transforms = self.build_transform()
 
@@ -174,14 +197,17 @@ class COCODemo(object):
         normalize_transform = T.Normalize(
             mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD
         )
-
-        transform = T.Compose([
-            T.ToPILImage(),
-            Resize(self.cfg.INPUT.MIN_SIZE_TEST, self.cfg.INPUT.MAX_SIZE_TEST),
-            T.ToTensor(),
-            to_bgr_transform,
-            normalize_transform,
-        ])
+        min_size = cfg.INPUT.MIN_SIZE_TEST
+        max_size = cfg.INPUT.MAX_SIZE_TEST
+        transform = T.Compose(
+            [
+                T.ToPILImage(),
+                Resize(min_size, max_size),
+                T.ToTensor(),
+                to_bgr_transform,
+                normalize_transform,
+            ]
+        )
         return transform
 
     def run_on_opencv_image(self, image):

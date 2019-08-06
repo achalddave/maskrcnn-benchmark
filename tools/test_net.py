@@ -19,6 +19,12 @@ from maskrcnn_benchmark.utils.collect_env import collect_env_info
 from maskrcnn_benchmark.utils.comm import synchronize, get_rank
 from maskrcnn_benchmark.utils.miscellaneous import mkdir
 
+# Check if we can enable mixed-precision via apex.amp
+try:
+    from apex import amp
+except ImportError:
+    raise ImportError('Use APEX for mixed precision via apex.amp')
+
 
 def main():
     parser = argparse.ArgumentParser(description="PyTorch Object Detection Inference")
@@ -40,6 +46,11 @@ def main():
               'replaced by cfg.OUTPUT_DIR, and {model_stem}, which is '
               'replaced by the stem of the file used to load weights.'))
     parser.add_argument("--local_rank", type=int, default=0)
+    parser.add_argument(
+        "--ckpt",
+        help="The path to the checkpoint for test, default is the latest checkpoint.",
+        default=None,
+    )
     parser.add_argument(
         "opts",
         help="Modify config options using the command-line",
@@ -96,7 +107,14 @@ def main():
     file_logger.info("Collecting env info (might take some time)")
     file_logger.info("\n" + collect_env_info())
 
-    checkpointer.load(load_path, allow_override=False)
+    # Initialize mixed-precision if necessary
+    use_mixed_precision = cfg.DTYPE == 'float16'
+    amp_handle = amp.init(enabled=use_mixed_precision, verbose=cfg.AMP_VERBOSE)
+
+    output_dir = cfg.OUTPUT_DIR
+    checkpointer = DetectronCheckpointer(cfg, model, save_dir=output_dir)
+    ckpt = cfg.MODEL.WEIGHT if args.ckpt is None else args.ckpt
+    _ = checkpointer.load(ckpt, use_latest=args.ckpt is None)
 
     iou_types = ("bbox",)
     if cfg.MODEL.MASK_ON:
